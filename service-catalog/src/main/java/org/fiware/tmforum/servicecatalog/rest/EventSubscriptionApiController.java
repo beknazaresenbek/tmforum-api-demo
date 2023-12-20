@@ -1,5 +1,6 @@
 package org.fiware.tmforum.servicecatalog.rest;
 
+import io.github.wistefan.mapping.EntityVOMapper;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Controller;
@@ -7,9 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.fiware.servicecatalog.api.EventsSubscriptionApi;
 import org.fiware.servicecatalog.model.EventSubscriptionInputVO;
 import org.fiware.servicecatalog.model.EventSubscriptionVO;
+import org.fiware.tmforum.common.configuration.GeneralProperties;
 import org.fiware.tmforum.common.notification.EventHandler;
 import org.fiware.tmforum.common.querying.QueryParser;
-import org.fiware.tmforum.common.domain.subscription.Subscription;
+import org.fiware.tmforum.common.domain.subscription.TMForumSubscription;
 import org.fiware.tmforum.common.repository.TmForumRepository;
 import org.fiware.tmforum.common.rest.AbstractSubscriptionApiController;
 import org.fiware.tmforum.common.validation.ReferenceValidationService;
@@ -40,15 +42,18 @@ public class EventSubscriptionApiController extends AbstractSubscriptionApiContr
 			EVENT_GROUP_SERVICE_CATALOG, EVENT_GROUP_SERVICE_CATEGORY, EVENT_GROUP_SERVICE_SPECIFICATION);
 
 	public EventSubscriptionApiController(QueryParser queryParser, ReferenceValidationService validationService,
-										  TmForumRepository repository, TMForumMapper tmForumMapper, EventHandler eventHandler) {
-		super(queryParser, validationService, repository, EVENT_GROUP_TO_ENTITY_NAME_MAPPING, eventHandler);
+										  TmForumRepository repository, TMForumMapper tmForumMapper,
+										  EventHandler eventHandler, GeneralProperties generalProperties,
+										  EntityVOMapper entityVOMapper) {
+		super(queryParser, validationService, repository, EVENT_GROUP_TO_ENTITY_NAME_MAPPING, eventHandler,
+				generalProperties, entityVOMapper);
 		this.tmForumMapper = tmForumMapper;
 	}
 
 	@Override
 	public Mono<HttpResponse<EventSubscriptionVO>> registerListener(
 			@NonNull EventSubscriptionInputVO eventSubscriptionInputVO) {
-		Subscription subscription = buildSubscription(eventSubscriptionInputVO.getCallback(),
+		TMForumSubscription subscription = buildSubscription(eventSubscriptionInputVO.getCallback(),
 				eventSubscriptionInputVO.getQuery(), EVENT_GROUPS);
 
 		return create(subscription)
