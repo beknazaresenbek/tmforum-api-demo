@@ -8,37 +8,10 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.fiware.ngsi.api.EntitiesApiClient;
 import org.fiware.resourcefunction.api.ResourceFunctionApiTestClient;
 import org.fiware.resourcefunction.api.ResourceFunctionApiTestSpec;
-import org.fiware.resourcefunction.model.AttachmentRefOrValueVOTestExample;
-import org.fiware.resourcefunction.model.CharacteristicRelationshipVOTestExample;
-import org.fiware.resourcefunction.model.CharacteristicVOTestExample;
-import org.fiware.resourcefunction.model.ConnectionPointRefVOTestExample;
-import org.fiware.resourcefunction.model.ConnectionVOTestExample;
-import org.fiware.resourcefunction.model.ConstraintRefVOTestExample;
-import org.fiware.resourcefunction.model.FeatureRelationshipVOTestExample;
-import org.fiware.resourcefunction.model.FeatureVOTestExample;
-import org.fiware.resourcefunction.model.NoteVOTestExample;
-import org.fiware.resourcefunction.model.RelatedPartyVOTestExample;
-import org.fiware.resourcefunction.model.RelatedPlaceRefOrValueVOTestExample;
-import org.fiware.resourcefunction.model.ResourceAdministrativeStateTypeVO;
-import org.fiware.resourcefunction.model.ResourceFunctionCreateVO;
-import org.fiware.resourcefunction.model.ResourceFunctionCreateVOTestExample;
-import org.fiware.resourcefunction.model.ResourceFunctionUpdateVO;
-import org.fiware.resourcefunction.model.ResourceFunctionUpdateVOTestExample;
-import org.fiware.resourcefunction.model.ResourceFunctionVO;
-import org.fiware.resourcefunction.model.ResourceFunctionVOTestExample;
-import org.fiware.resourcefunction.model.ResourceGraphRefVOTestExample;
-import org.fiware.resourcefunction.model.ResourceGraphRelationshipVOTestExample;
-import org.fiware.resourcefunction.model.ResourceGraphVOTestExample;
-import org.fiware.resourcefunction.model.ResourceOperationalStateTypeVO;
-import org.fiware.resourcefunction.model.ResourceRefOrValueVOTestExample;
-import org.fiware.resourcefunction.model.ResourceRelationshipVOTestExample;
-import org.fiware.resourcefunction.model.ResourceSpecificationRefVOTestExample;
-import org.fiware.resourcefunction.model.ResourceStatusTypeVO;
-import org.fiware.resourcefunction.model.ResourceUsageStateTypeVO;
-import org.fiware.resourcefunction.model.ScheduleRefVOTestExample;
-import org.fiware.tmforum.common.notification.EventHandler;
+import org.fiware.resourcefunction.model.*;
 import org.fiware.tmforum.common.configuration.GeneralProperties;
 import org.fiware.tmforum.common.exception.ErrorDetails;
+import org.fiware.tmforum.common.notification.TMForumEventHandler;
 import org.fiware.tmforum.common.test.AbstractApiIT;
 import org.fiware.tmforum.resourcefunction.domain.ResourceFunction;
 import org.junit.jupiter.api.Disabled;
@@ -48,12 +21,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -79,13 +49,12 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 		this.resourceFunctionApiTestClient = resourceFunctionApiTestClient;
 	}
 
-	@MockBean(EventHandler.class)
-	public EventHandler eventHandler() {
-		EventHandler eventHandler = mock(EventHandler.class);
+	@MockBean(TMForumEventHandler.class)
+	public TMForumEventHandler eventHandler() {
+		TMForumEventHandler eventHandler = mock(TMForumEventHandler.class);
 
 		when(eventHandler.handleCreateEvent(any())).thenReturn(Mono.empty());
 		when(eventHandler.handleUpdateEvent(any(), any())).thenReturn(Mono.empty());
-		when(eventHandler.handleDeleteEvent(any())).thenReturn(Mono.empty());
 
 		return eventHandler;
 	}
@@ -108,7 +77,7 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 		assertEquals(HttpStatus.CREATED, resourceFunctionVOHttpResponse.getStatus(), message);
 		String rfId = resourceFunctionVOHttpResponse.body().getId();
 		expectedResourceFunction.setId(rfId);
-		expectedResourceFunction.setHref(rfId);
+		expectedResourceFunction.setHref(URI.create(rfId));
 
 		assertEquals(expectedResourceFunction, resourceFunctionVOHttpResponse.body(), message);
 	}
@@ -145,9 +114,6 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 
 	private static Stream<Arguments> provideInvalidResourceFunctions() {
 		List<Arguments> testEntries = new ArrayList<>();
-
-		testEntries.add(Arguments.of("A resource function without a lifecycleState should not be created.",
-				ResourceFunctionCreateVOTestExample.build().lifecycleState(null)));
 
 		testEntries.add(Arguments.of("A resource functions with invalid connection points should not be created.",
 				ResourceFunctionCreateVOTestExample.build()
@@ -350,7 +316,7 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 			ResourceFunctionVO resourceFunctionVO = ResourceFunctionVOTestExample.build();
 			resourceFunctionVO
 					.id(id)
-					.href(id)
+					.href(URI.create(id))
 					.connectionPoint(null)
 					.place(null)
 					.relatedParty(null)
@@ -497,7 +463,7 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 		assertEquals(HttpStatus.OK, updateResponse.getStatus(), message);
 
 		ResourceFunctionVO updatedResourceFunction = updateResponse.body();
-		expectedResourceFunction.href(resourceId).id(resourceId);
+		expectedResourceFunction.href(URI.create(resourceId)).id(resourceId);
 
 		if (expectedResourceFunction.getConnectionPoint() != null && expectedResourceFunction.getConnectionPoint()
 				.isEmpty()) {
@@ -635,15 +601,15 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 		ResourceFunctionUpdateVO attachmentUpdate = ResourceFunctionUpdateVOTestExample.build()
 				.attachment(List.of(AttachmentRefOrValueVOTestExample.build()
 						.id("urn:ngsi-ld:attachment:a")
-						.url("http://my-attachment.com")
-						.href("urn:ngsi-ld:attachment:a")))
+						.url(URI.create("http://my-attachment.com"))
+						.href(URI.create("urn:ngsi-ld:attachment:a"))))
 				.place(null)
 				.resourceSpecification(null);
 		ResourceFunctionVO expectedAttachmentUpdate = ResourceFunctionVOTestExample.build()
 				.attachment(List.of(AttachmentRefOrValueVOTestExample.build()
 						.id("urn:ngsi-ld:attachment:a")
-						.url("http://my-attachment.com")
-						.href("urn:ngsi-ld:attachment:a")
+						.url(URI.create("http://my-attachment.com"))
+						.href(URI.create("urn:ngsi-ld:attachment:a"))
 						.validFor(null)))
 				.place(null)
 				.resourceSpecification(null);
@@ -942,7 +908,7 @@ public class ResourceFunctionApiIT extends AbstractApiIT implements ResourceFunc
 		ResourceFunctionVO expectedResourceFunctionVO = ResourceFunctionVOTestExample.build();
 		expectedResourceFunctionVO
 				.id(id)
-				.href(id)
+				.href(URI.create(id))
 				.place(null)
 				.resourceSpecification(null)
 				.connectionPoint(null)

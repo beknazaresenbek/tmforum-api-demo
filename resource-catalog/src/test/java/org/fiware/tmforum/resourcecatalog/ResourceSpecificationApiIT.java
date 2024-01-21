@@ -8,26 +8,10 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.fiware.ngsi.api.EntitiesApiClient;
 import org.fiware.resourcecatalog.api.ResourceSpecificationApiTestClient;
 import org.fiware.resourcecatalog.api.ResourceSpecificationApiTestSpec;
-import org.fiware.resourcecatalog.model.ConstraintRefVOTestExample;
-import org.fiware.resourcecatalog.model.FeatureSpecificationCharacteristicRelationshipVOTestExample;
-import org.fiware.resourcecatalog.model.FeatureSpecificationCharacteristicVOTestExample;
-import org.fiware.resourcecatalog.model.FeatureSpecificationRelationshipVOTestExample;
-import org.fiware.resourcecatalog.model.FeatureSpecificationVO;
-import org.fiware.resourcecatalog.model.FeatureSpecificationVOTestExample;
-import org.fiware.resourcecatalog.model.RelatedPartyVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceSpecificationCharacteristicRelationshipVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceSpecificationCharacteristicVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceSpecificationCreateVO;
-import org.fiware.resourcecatalog.model.ResourceSpecificationCreateVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceSpecificationUpdateVO;
-import org.fiware.resourcecatalog.model.ResourceSpecificationUpdateVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceSpecificationVO;
-import org.fiware.resourcecatalog.model.ResourceSpecificationVOTestExample;
-import org.fiware.resourcecatalog.model.TimePeriodVO;
-import org.fiware.resourcecatalog.model.TimePeriodVOTestExample;
-import org.fiware.tmforum.common.notification.EventHandler;
+import org.fiware.resourcecatalog.model.*;
 import org.fiware.tmforum.common.configuration.GeneralProperties;
 import org.fiware.tmforum.common.exception.ErrorDetails;
+import org.fiware.tmforum.common.notification.TMForumEventHandler;
 import org.fiware.tmforum.common.test.AbstractApiIT;
 import org.fiware.tmforum.common.test.ArgumentPair;
 import org.fiware.tmforum.resource.ResourceSpecification;
@@ -38,6 +22,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -77,13 +62,12 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 		return clock;
 	}
 
-	@MockBean(EventHandler.class)
-	public EventHandler eventHandler() {
-		EventHandler eventHandler = mock(EventHandler.class);
+	@MockBean(TMForumEventHandler.class)
+	public TMForumEventHandler eventHandler() {
+		TMForumEventHandler eventHandler = mock(TMForumEventHandler.class);
 
 		when(eventHandler.handleCreateEvent(any())).thenReturn(Mono.empty());
 		when(eventHandler.handleUpdateEvent(any(), any())).thenReturn(Mono.empty());
-		when(eventHandler.handleDeleteEvent(any())).thenReturn(Mono.empty());
 
 		return eventHandler;
 	}
@@ -109,7 +93,7 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 				() -> resourceSpecificationApiTestClient.createResourceSpecification(resourceSpecificationCreateVO));
 		assertEquals(HttpStatus.CREATED, resourceSpecificationVOHttpResponse.getStatus(), message);
 		String rsId = resourceSpecificationVOHttpResponse.body().getId();
-		expectedResourceSpecification.id(rsId).href(rsId).lastUpdate(currentTimeInstant).resourceSpecRelationship(null);
+		expectedResourceSpecification.id(rsId).href(URI.create(rsId)).lastUpdate(currentTimeInstant).resourceSpecRelationship(null);
 
 		assertEquals(expectedResourceSpecification, resourceSpecificationVOHttpResponse.body(), message);
 	}
@@ -156,10 +140,12 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 						.featureSpecRelationship(null)
 						.featureSpecCharacteristic(List.of(
 								FeatureSpecificationCharacteristicVOTestExample.build()
+										.id("urn:feature-spec-char")
 										.validFor(null)
 										.featureSpecCharacteristicValue(null)
 										.featureSpecCharRelationship(
 												List.of(FeatureSpecificationCharacteristicRelationshipVOTestExample.build()
+														.id("urn:feature-spec-char-rel")
 														.validFor(null)
 														.resourceSpecificationId(null)))
 						))));
@@ -171,8 +157,9 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 						.featureSpecCharacteristic(null)
 						.featureSpecRelationship(List.of(
 								FeatureSpecificationRelationshipVOTestExample.build()
+										.id("urn:feature-spec-rel")
 										.validFor(null)
-										.resourceSpecificationId(null)))));
+										.parentSpecificationId(null)))));
 
 		return validFeatureSpecs.stream();
 	}
@@ -272,12 +259,12 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 						FeatureSpecificationVOTestExample.build()
 								.featureSpecRelationship(List.of(FeatureSpecificationRelationshipVOTestExample.build()
 										.featureId(null)
-										.resourceSpecificationId("invalid")))));
+										.parentSpecificationId("invalid")))));
 		invalidFeatureSpecs.add(
 				new ArgumentPair<>("Feature specification with non-existent resource id on spec rel should fail.",
 						FeatureSpecificationVOTestExample.build()
 								.featureSpecRelationship(List.of(FeatureSpecificationRelationshipVOTestExample.build()
-										.resourceSpecificationId("urn:ngsi-ld:resource-specification:non-existent")
+										.parentSpecificationId("urn:ngsi-ld:resource-specification:non-existent")
 										.featureId(null)))));
 
 		return invalidFeatureSpecs.stream();
@@ -413,7 +400,7 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 			ResourceSpecificationVO resourceSpecificationVO = ResourceSpecificationVOTestExample.build();
 			resourceSpecificationVO
 					.id(id)
-					.href(id)
+					.href(URI.create(id))
 					.relatedParty(null);
 			expectedResourceSpecifications.add(resourceSpecificationVO);
 		}
@@ -562,7 +549,7 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 		assertEquals(HttpStatus.OK, updateResponse.getStatus(), message);
 
 		ResourceSpecificationVO updatedResourceSpecification = updateResponse.body();
-		expectedResourceSpecification.href(resourceId).id(resourceId).relatedParty(null).resourceSpecRelationship(null)
+		expectedResourceSpecification.href(URI.create(resourceId)).id(resourceId).relatedParty(null).resourceSpecRelationship(null)
 				.lastUpdate(currentTimeInstant);
 
 		assertEquals(expectedResourceSpecification, updatedResourceSpecification, message);
@@ -746,7 +733,7 @@ public class ResourceSpecificationApiIT extends AbstractApiIT implements Resourc
 
 		expectedResourceSpecification
 				.id(id)
-				.href(id);
+				.href(URI.create(id));
 
 		//then retrieve
 		HttpResponse<ResourceSpecificationVO> retrievedResourceSpec = callAndCatch(

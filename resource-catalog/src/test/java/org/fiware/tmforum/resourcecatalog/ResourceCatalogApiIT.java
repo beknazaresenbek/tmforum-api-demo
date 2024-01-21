@@ -8,19 +8,10 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.fiware.ngsi.api.EntitiesApiClient;
 import org.fiware.resourcecatalog.api.ResourceCatalogApiTestClient;
 import org.fiware.resourcecatalog.api.ResourceCatalogApiTestSpec;
-import org.fiware.resourcecatalog.model.RelatedPartyVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceCatalogCreateVO;
-import org.fiware.resourcecatalog.model.ResourceCatalogCreateVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceCatalogUpdateVO;
-import org.fiware.resourcecatalog.model.ResourceCatalogUpdateVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceCatalogVO;
-import org.fiware.resourcecatalog.model.ResourceCatalogVOTestExample;
-import org.fiware.resourcecatalog.model.ResourceCategoryRefVOTestExample;
-import org.fiware.resourcecatalog.model.TimePeriodVO;
-import org.fiware.resourcecatalog.model.TimePeriodVOTestExample;
-import org.fiware.tmforum.common.notification.EventHandler;
+import org.fiware.resourcecatalog.model.*;
 import org.fiware.tmforum.common.configuration.GeneralProperties;
 import org.fiware.tmforum.common.exception.ErrorDetails;
+import org.fiware.tmforum.common.notification.TMForumEventHandler;
 import org.fiware.tmforum.common.test.AbstractApiIT;
 import org.fiware.tmforum.resourcecatalog.domain.ResourceCatalog;
 import org.junit.jupiter.api.Disabled;
@@ -30,6 +21,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -69,13 +61,12 @@ public class ResourceCatalogApiIT extends AbstractApiIT implements ResourceCatal
 		return clock;
 	}
 
-	@MockBean(EventHandler.class)
-	public EventHandler eventHandler() {
-		EventHandler eventHandler = mock(EventHandler.class);
+	@MockBean(TMForumEventHandler.class)
+	public TMForumEventHandler eventHandler() {
+		TMForumEventHandler eventHandler = mock(TMForumEventHandler.class);
 
 		when(eventHandler.handleCreateEvent(any())).thenReturn(Mono.empty());
 		when(eventHandler.handleUpdateEvent(any(), any())).thenReturn(Mono.empty());
-		when(eventHandler.handleDeleteEvent(any())).thenReturn(Mono.empty());
 
 		return eventHandler;
 	}
@@ -101,7 +92,7 @@ public class ResourceCatalogApiIT extends AbstractApiIT implements ResourceCatal
 		assertEquals(HttpStatus.CREATED, resourceCatalogVOHttpResponse.getStatus(), message);
 		String rfId = resourceCatalogVOHttpResponse.body().getId();
 		expectedResourceCatalog.setId(rfId);
-		expectedResourceCatalog.setHref(rfId);
+		expectedResourceCatalog.setHref(URI.create(rfId));
 		expectedResourceCatalog.setLastUpdate(currentTimeInstant);
 
 		assertEquals(expectedResourceCatalog, resourceCatalogVOHttpResponse.body(), message);
@@ -289,7 +280,7 @@ public class ResourceCatalogApiIT extends AbstractApiIT implements ResourceCatal
 			ResourceCatalogVO resourceCatalogVO = ResourceCatalogVOTestExample.build();
 			resourceCatalogVO
 					.id(id)
-					.href(id)
+					.href(URI.create(id))
 					.category(null)
 					.relatedParty(null);
 			expectedResourceCatalogs.add(resourceCatalogVO);
@@ -432,7 +423,7 @@ public class ResourceCatalogApiIT extends AbstractApiIT implements ResourceCatal
 		assertEquals(HttpStatus.OK, updateResponse.getStatus(), message);
 
 		ResourceCatalogVO updatedResourceCatalog = updateResponse.body();
-		expectedResourceCatalog.href(resourceId).id(resourceId);
+		expectedResourceCatalog.href(URI.create(resourceId)).id(resourceId);
 
 		expectedResourceCatalog.relatedParty(null);
 		expectedResourceCatalog.category(null);
@@ -591,7 +582,7 @@ public class ResourceCatalogApiIT extends AbstractApiIT implements ResourceCatal
 
 		expectedResourceCatalog
 				.id(id)
-				.href(id);
+				.href(URI.create(id));
 
 		//then retrieve
 		HttpResponse<ResourceCatalogVO> retrievedRF = callAndCatch(

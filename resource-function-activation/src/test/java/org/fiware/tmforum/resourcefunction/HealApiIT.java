@@ -8,17 +8,10 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.fiware.ngsi.api.EntitiesApiClient;
 import org.fiware.resourcefunction.api.HealApiTestClient;
 import org.fiware.resourcefunction.api.HealApiTestSpec;
-import org.fiware.resourcefunction.model.CharacteristicVOTestExample;
-import org.fiware.resourcefunction.model.HealCreateVO;
-import org.fiware.resourcefunction.model.HealCreateVOTestExample;
-import org.fiware.resourcefunction.model.HealPolicyRefVOTestExample;
-import org.fiware.resourcefunction.model.HealVO;
-import org.fiware.resourcefunction.model.HealVOTestExample;
-import org.fiware.resourcefunction.model.ResourceFunctionRefVOTestExample;
-import org.fiware.resourcefunction.model.TaskStateTypeVO;
-import org.fiware.tmforum.common.notification.EventHandler;
+import org.fiware.resourcefunction.model.*;
 import org.fiware.tmforum.common.configuration.GeneralProperties;
 import org.fiware.tmforum.common.exception.ErrorDetails;
+import org.fiware.tmforum.common.notification.TMForumEventHandler;
 import org.fiware.tmforum.common.test.AbstractApiIT;
 import org.fiware.tmforum.resourcefunction.domain.Heal;
 import org.junit.jupiter.api.Disabled;
@@ -28,6 +21,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -56,13 +50,12 @@ public class HealApiIT extends AbstractApiIT implements HealApiTestSpec {
 		this.healApiTestClient = healApiTestClient;
 	}
 
-	@MockBean(EventHandler.class)
-	public EventHandler eventHandler() {
-		EventHandler eventHandler = mock(EventHandler.class);
+	@MockBean(TMForumEventHandler.class)
+	public TMForumEventHandler eventHandler() {
+		TMForumEventHandler eventHandler = mock(TMForumEventHandler.class);
 
 		when(eventHandler.handleCreateEvent(any())).thenReturn(Mono.empty());
 		when(eventHandler.handleUpdateEvent(any(), any())).thenReturn(Mono.empty());
-		when(eventHandler.handleDeleteEvent(any())).thenReturn(Mono.empty());
 
 		return eventHandler;
 	}
@@ -83,7 +76,7 @@ public class HealApiIT extends AbstractApiIT implements HealApiTestSpec {
 		assertEquals(HttpStatus.CREATED, healVOHttpResponse.getStatus(), message);
 		String healId = healVOHttpResponse.body().getId();
 
-		expectedHealVO.id(healId).href(healId);
+		expectedHealVO.id(healId).href(URI.create(healId));
 
 		assertEquals(expectedHealVO, healVOHttpResponse.body(), message);
 	}
@@ -227,7 +220,7 @@ public class HealApiIT extends AbstractApiIT implements HealApiTestSpec {
 			HealVO healVO = HealVOTestExample.build();
 			healVO
 					.id(id)
-					.href(id)
+					.href(URI.create(id))
 					.healPolicy(null)
 					.resourceFunction(null);
 			expectedHeals.add(healVO);
@@ -352,7 +345,7 @@ public class HealApiIT extends AbstractApiIT implements HealApiTestSpec {
 		assertEquals(HttpStatus.CREATED, healVOHttpResponse.getStatus(), "The initial create should be successfully.");
 		String healId = healVOHttpResponse.body().getId();
 
-		HealVO expectedHeal = HealVOTestExample.build().id(healId).href(healId).healPolicy(null).resourceFunction(null);
+		HealVO expectedHeal = HealVOTestExample.build().id(healId).href(URI.create(healId)).healPolicy(null).resourceFunction(null);
 
 		HttpResponse<HealVO> retreiveResponse = callAndCatch(() -> healApiTestClient.retrieveHeal(healId, null));
 		assertEquals(HttpStatus.OK, retreiveResponse.getStatus(), "The retrieval should be successfully.");
